@@ -17,44 +17,53 @@ function App() {
   const [results, setResults] = useState([]);
   const [hasQueried, setHasQueried] = useState(false);
   const [tokenDataObjects, setTokenDataObjects] = useState([]);
+  const [loading,setLoading] = useState(false);
 
   async function getNFTsForOwner() {
+    setLoading(true);
     const config = {
-      apiKey: '<-- COPY-PASTE YOUR ALCHEMY API KEY HERE -->',
+      apiKey: import.meta.env.VITE_ALCHEMY_API_KEY,
       network: Network.ETH_MAINNET,
     };
 
     const alchemy = new Alchemy(config);
-    const data = await alchemy.nft.getNftsForOwner(userAddress);
-    setResults(data);
+    const dataRaw = await alchemy.nft.getNftsForOwner(userAddress);
+    
+    // filter out missing titles, spam nfts
+    const data = dataRaw.ownedNfts
+        .filter((d,i)=>d.title!=='')
+        .filter((d,i)=>d.title.toLowerCase().indexOf('pass')<0)
+        .filter((d,i)=>d.title.toLowerCase().indexOf('airdrop')<0)
+        .filter((d,i)=>d.title.toLowerCase().indexOf('visit')<0);
 
+    setResults(data);
+    
     const tokenDataPromises = [];
 
-    for (let i = 0; i < data.ownedNfts.length; i++) {
+    for (let i = 0; i < data.length; i++) {
       const tokenData = alchemy.nft.getNftMetadata(
-        data.ownedNfts[i].contract.address,
-        data.ownedNfts[i].tokenId
+        data[i].contract.address,
+        data[i].tokenId,
+        {}
       );
       tokenDataPromises.push(tokenData);
     }
 
     setTokenDataObjects(await Promise.all(tokenDataPromises));
     setHasQueried(true);
+    setLoading(false);
   }
   return (
-    <Box w="100vw">
+    <Box w="100vw" mt='-200px'>
       <Center>
         <Flex
           alignItems={'center'}
           justifyContent="center"
           flexDirection={'column'}
         >
-          <Heading mb={0} fontSize={36}>
-            NFT Indexer 🖼
+          <Heading mb={0} fontSize={36} display='flex' alignItems='flex-end'>
+            NFT Indexer <Image boxSize='30px' ml='5px' filter='invert(1)' src='nft-indexer-logo.png'/>
           </Heading>
-          <Text>
-            Plug in an address and this website will return all of its NFTs!
-          </Text>
         </Flex>
       </Center>
       <Flex
@@ -73,22 +82,22 @@ function App() {
           bgColor="white"
           fontSize={24}
         />
-        <Button fontSize={20} onClick={getNFTsForOwner} mt={36} bgColor="blue">
-          Fetch NFTs
+        <Button fontSize={20} onClick={getNFTsForOwner} mt={36} bgColor="#646cff">
+          {loading?'Loading...':'Fetch NFTs'}
         </Button>
 
-        <Heading my={36}>Here are your NFTs:</Heading>
+        { hasQueried && <Heading my={36}>NFTs for {`${userAddress.substring(0,5)}...${userAddress.substring(userAddress.length-3)}`}</Heading> }
 
-        {hasQueried ? (
+        {hasQueried && (
           <SimpleGrid w={'90vw'} columns={4} spacing={24}>
-            {results.ownedNfts.map((e, i) => {
+            {results.map((e, i) => {
               return (
                 <Flex
                   flexDir={'column'}
                   color="white"
                   bg="blue"
                   w={'20vw'}
-                  key={e.id}
+                  key={`nft_${i}`}
                 >
                   <Box>
                     <b>Name:</b>{' '}
@@ -107,8 +116,6 @@ function App() {
               );
             })}
           </SimpleGrid>
-        ) : (
-          'Please make a query! The query may take a few seconds...'
         )}
       </Flex>
     </Box>
