@@ -20,6 +20,10 @@ function App() {
   const [loading,setLoading] = useState(false);
 
   async function getNFTsForOwner() {
+    if(hasQueried){
+        setHasQueried(false);
+        return;
+    }
     setLoading(true);
     const config = {
       apiKey: import.meta.env.VITE_ALCHEMY_API_KEY,
@@ -34,7 +38,14 @@ function App() {
         .filter((d,i)=>d.title!=='')
         .filter((d,i)=>d.title.toLowerCase().indexOf('pass')<0)
         .filter((d,i)=>d.title.toLowerCase().indexOf('airdrop')<0)
-        .filter((d,i)=>d.title.toLowerCase().indexOf('visit')<0);
+        .filter((d,i)=>d.title.toLowerCase().indexOf('visit')<0)
+        .filter((d,i)=>d.title.toLowerCase().indexOf('blur')<0);
+
+    if(data.length>100){
+        alert('too many NFTs');
+        setLoading(false);
+        return;
+    }
 
     setResults(data);
     
@@ -83,7 +94,9 @@ function App() {
           fontSize={24}
         />
         <Button fontSize={20} onClick={getNFTsForOwner} mt={36} bgColor="#646cff">
-          {loading?'Loading...':'Fetch NFTs'}
+          {loading && 'Loading...'}
+          { (!loading && !hasQueried) && 'Fetch NFTs'}
+          { (!loading && hasQueried) && 'Change address'}
         </Button>
 
         { hasQueried && <Heading my={36}>NFTs for {`${userAddress.substring(0,5)}...${userAddress.substring(userAddress.length-3)}`}</Heading> }
@@ -91,15 +104,18 @@ function App() {
         {hasQueried && (
           <SimpleGrid w={'90vw'} columns={4} spacing={24}>
             {results.map((e, i) => {
+                let image = tokenDataObjects[i]?.rawMetadata?.image.replace('ipfs://','https://ipfs.io/ipfs/');
               return (
                 <Flex
                   flexDir={'column'}
-                  color="white"
-                  bg="blue"
                   w={'20vw'}
                   key={`nft_${i}`}
+                  p='8px'
+                  border='2px solid black'
+                  boxSizing={'border-box'}
+                  borderRadius='4px'
                 >
-                  <Box>
+                  <Box minHeight='48px'>
                     <b>Name:</b>{' '}
                     {tokenDataObjects[i].title?.length === 0
                       ? 'No Name'
@@ -107,7 +123,7 @@ function App() {
                   </Box>
                   <Image
                     src={
-                      tokenDataObjects[i]?.rawMetadata?.image ??
+                      image ??
                       'https://via.placeholder.com/200'
                     }
                     alt={'Image'}
